@@ -1,0 +1,30 @@
+[
+    {
+        "GroupName": "SurfRay",
+        "AnimName": [
+            "Jump",
+            "Land"
+        ],
+        "ContinueAnimEnd": true,
+        "UniqueName": "Splash",
+        "EffectName": [
+            "SMG_HipDropWater00",
+            "SMG_HipDropWater01",
+            "SMG_HipDropWater02"
+        ],
+        "OffsetX": 0.0,
+        "OffsetY": 0.0,
+        "OffsetZ": 0.0,
+        "ScaleValue": 1.2,
+        "RateValue": 1.0,
+        "LightAffectValue": 0.0,
+        "DrawOrder": "AFTER_INDIRECT",
+        "Affect": [
+            "T",
+            "R"
+        ],
+        "Follow": [
+            "T"
+        ]
+    }
+]

@@ -1,0 +1,20 @@
+{
+  "Name": "Manta Ray",
+  "Author": "VTXG, Evanbowl, Bavario",
+  "Description": "A port of SMG1's Manta Ray.\nDecompiled by MrL314 and ThatNintendoNerd.",
+  "InstallDependencies": ["Syati_ObjectFactories", "Syati_Init"],
+  "SupportedGames": [
+    "SB4"
+  ],
+  "ModuleData" : [
+    {
+      "NameObjFactory" : [
+        {
+          "Name" : "SurfRay",
+          "Function" : "createExtActor<SurfRay>",
+          "Include" : "SurfRay.h"
+        }
+      ]
+    }
+  ]
+}
