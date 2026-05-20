@@ -59,7 +59,10 @@ public:
     bool isRotateStart() const;
 
     // New Functions
-    // void exePlayerExit();
+    void updateBoost();
+    bool isUnderwater();
+    bool tryDismount();
+    void exePlayerExit();
 
     void updateDive();
     void updateEffect();
@@ -107,5 +110,11 @@ public:
     // New Members
     /* 0x1C4 */ SurfRayConst* mConst;
     /* 0x1C8 */ f32 mDiveSpeed;
+    f32 mSpeedMult; // For dash rings
+    f32 mSpeedMultTarget; // For dash rings
+    s32 mSpeedMultAccelTime; // For dash rings
+    s32 mSpeedMultTime; // For dash rings
+    u32 mDamageDismount; // ALWAYS SET BEFORE USING!!
+    s32 mGotoNearestPosWhenClipped; // Travel system
     /* 0x1CC */ bool mIsDive;
 };

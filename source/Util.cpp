@@ -1,11 +1,11 @@
 #include "Util.h"
 
 extern "C" {
-    StarPointerOnOffController* getStarPointerOnOffController__29unnamedStarPointerUtil_cppFv();
+    StarPointerOnOffController* __kAutoMap_8005BCB0(); // getStarPointerOnOffController__29@unnamed@StarPointerUtil_cpp@Fv
 }
 
 namespace MR {
     void startStarPointerMode1PInvalid2PValid(void *pHost) {
-        getStarPointerOnOffController__29unnamedStarPointerUtil_cppFv()->incModeCounter(pHost, 9);
+        __kAutoMap_8005BCB0()->incModeCounter(pHost, StarPointerMode_DemoWithStarPointer);
     }
 }
