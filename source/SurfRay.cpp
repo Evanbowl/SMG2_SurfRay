@@ -499,7 +499,7 @@ void SurfRay::exeWait() {
             if (!MR::isJudgedToClipFrustum(translation, bodyradius))
                 continue; // pos not clipped
 
-        OSReport("Distance to %s: %ff", buf, distancetopoint);
+        OSReport("Distance to %s: %ff\n", buf, distancetopoint);
 
         if (BestDist < distancetopoint)
             continue;
@@ -530,6 +530,15 @@ void SurfRay::exeWait() {
     rotMtx.getXDir(mSide);
     rotMtx.getYDir(mUp);
     rotMtx.getZDir(mFront);
+
+    mBaseUp.set(mUp);
+    mBaseSide.set(mSide);
+
+    mRotation.zero();
+    mVelocity.zero();
+    mOrthoVelocity.zero();
+
+    MR::makeMtxUpFrontPos(&mEffectHostMtx, -mGravity, mFront, mTranslation);
 }
 
 void SurfRay::exeRideAccel() {
