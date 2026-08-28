@@ -50,7 +50,17 @@ asm void detectEndOfParentTable() {
 }
 kmWrite32(0x8006EA94, PPC_B(0xC));
 kmCall(0x8006EAA0, detectEndOfParentTable);
+#if defined(SB4E)
 kmWrite32(0x806D29F8, 0xFF);
+#elif defined(SB4P)
+kmWrite32(0x806D80F8, 0xFF);
+#elif defined(SB4J)
+kmWrite32(0x806D21D8, 0xFF);
+#elif defined(SB4K)
+kmWrite32(0x806D1838, 0xFF);
+#elif defined(SB4W)
+kmWrite32(0x806D2C98, 0xFF);
+#endif
 
 
 void redirGroupInfoHashTable(int* pThis, XanimeGroupInfo* tbl) {
@@ -161,7 +171,17 @@ namespace {
     const u32 gZero = 0x00FF0000;
 };
 
+#if defined(SB4E)
 kmWritePointer(0x806CC920, &gZero);
+#elif defined(SB4P)
+kmWritePointer(0x806D2020, &gZero);
+#elif defined(SB4J)
+kmWritePointer(0x806CC100, &gZero);
+#elif defined(SB4K)
+kmWritePointer(0x806CB760, &gZero);
+#elif defined(SB4W)
+kmWritePointer(0x806CCBC0, &gZero);
+#endif
 
 int searchSingleAnimTables(int* pTable, int** ppTable, const char* pStr, u32 u) {
     bool search = __kAutoMap_8006E840(pTable, ppTable, pStr, u);;
