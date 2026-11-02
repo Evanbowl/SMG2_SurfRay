@@ -168,10 +168,10 @@ SurfRay::SurfRay(const char* pName, s32 channel)
 
 void SurfRay::init(const JMapInfoIter& rIter) {
     if (GameSequenceFunction::hasRetryGalaxySequence()) {
-        OSReport("generalpos\n");
+        //OSReport("generalpos\n");
         // MR::resetPosition(this, "スタート位置（サーフィン）");
     } else {
-        OSReport("defaultpos\n");
+        //OSReport("defaultpos\n");
         // MR::initDefaultPos(this, rIter);
     }
 
@@ -234,7 +234,7 @@ void SurfRay::init(const JMapInfoIter& rIter) {
         char buf[0x20];
         snprintf(buf, 0x20, WARP_POS_FORMAT, i);
         if (MR::tryRegisterNamePosLinkObj(this, rIter, buf))
-            OSReport("Linked %s\n", buf);
+            ;//OSReport("Linked %s\n", buf);
     }
 }
 
@@ -242,6 +242,20 @@ void SurfRay::control() {
     // if (MR::testCorePadButtonPlus(0)) {
     //     receiveOtherMsg(ACTMES_TUTORIAL_OMIT, nullptr, nullptr);
     // }
+
+
+    if (mRider)
+        if (PSVECMag(mVelocity.toVecPtr()) > 10.0f || isUnderwater() || !tryInWater()) {
+            if (MR::isValidSwitchA(this) && MR::isOnSwitchA(this))
+                MR::offSwitchA(this);
+        }
+        else {
+            if (MR::isValidSwitchA(this) && !MR::isOnSwitchA(this))
+                MR::onSwitchA(this);
+        }
+    else if (MR::isValidSwitchA(this) && MR::isOnSwitchA(this))
+        MR::offSwitchA(this);
+
 
     f32 surfspeed = mSurfSpeed;
     if (!mInWater && MR::isBindedGround(this))
@@ -325,9 +339,6 @@ bool SurfRay::receiveOtherMsg(u32 msg, HitSensor* pSender, HitSensor* pReceiver)
         MR::invalidateClipping(this);
         mRayTilt = 0.0f;
 
-        if (MR::isValidSwitchA(this)) {
-            MR::onSwitchA(this);
-        }
 
         Mario* pMario = MR::getMarioHolder()->getMarioActor()->mMario;
         pMario->closeStatus(nullptr); // Cancel Mario's status so that dismounting doesn't break...
@@ -479,7 +490,7 @@ void SurfRay::exeWait() {
     if (!MR::isJudgedToClipFrustum(mTranslation, bodyradius))
         return;
 
-    OSReport("Player too far. Attempting Teleport...\n");
+    //OSReport("Player too far. Attempting Teleport...\n");
 
     // find nearest warp point
     s32 BestIDX = -1;
@@ -499,7 +510,7 @@ void SurfRay::exeWait() {
             if (!MR::isJudgedToClipFrustum(translation, bodyradius))
                 continue; // pos not clipped
 
-        OSReport("Distance to %s: %ff\n", buf, distancetopoint);
+        //OSReport("Distance to %s: %ff\n", buf, distancetopoint);
 
         if (BestDist < distancetopoint)
             continue;
@@ -509,20 +520,20 @@ void SurfRay::exeWait() {
         BestDist = distancetopoint;
     }
 
-    OSReport("Best ID = %d\n", BestIDX);
+    //OSReport("Best ID = %d\n", BestIDX);
     if (BestIDX < 0)
         return;
 
     char destposname[0x20];
     snprintf(destposname, 0x20, WARP_POS_FORMAT, BestIDX);
-    OSReport("Trying to teleport to %s\n", destposname);
+    //OSReport("Trying to teleport to %s\n", destposname);
     if (!MR::tryFindLinkNamePos(this, destposname, &mTranslation, &mRotation))
     {
-        OSReport("Failed to find %s\n", destposname);
+        //OSReport("Failed to find %s\n", destposname);
         return;
     }
 
-    OSReport("Teleported to %s\n", destposname);
+    //OSReport("Teleported to %s\n", destposname);
     TRot3f rotMtx;
     rotMtx.identity();
     MR::makeMtxRotate(rotMtx, mRotation);
@@ -645,6 +656,7 @@ void SurfRay::exeTutorial() {
     mSurfSpeed = 0.0f;
     mRotation.z *= 0.85f;
 
+    f32 rot; // having this here fixes a compiler warning
     switch (mLectureIdx) {
     case 0:
         if (MR::isFirstStep(this)) {
@@ -704,7 +716,7 @@ void SurfRay::exeTutorial() {
             MR::startBckPlayerJ("サーフィン傾き開始");
         }
 
-        f32 rot = __fabsf((mRotation.z / mConst->mRotateMaxZ) * 0.6f);
+        rot = __fabsf((mRotation.z / mConst->mRotateMaxZ) * 0.6f);
 
         if (mRotation.z < 0.0f) {
             MR::setBckBlendWeight(1.0f - rot, rot, 0.0f);
@@ -1309,7 +1321,7 @@ void SurfRay::updateBoost() {
 
     mOrthoVelocity.add(mFront * mSpeedMult);
 
-    OSReport("Boost: %ff / %ff   Accel/Time: %d / %d\n", mSpeedMult, mSpeedMultTarget, mSpeedMultAccelTime, mSpeedMultTime);
+    //OSReport("Boost: %ff / %ff   Accel/Time: %d / %d\n", mSpeedMult, mSpeedMultTarget, mSpeedMultAccelTime, mSpeedMultTime);
 }
 
 bool SurfRay::isUnderwater() {
@@ -1383,6 +1395,7 @@ void SurfRay::exePlayerExit() {
     if (MR::isGreaterStep(this, 120)) {
         //resetAllInfo();
         MR::validateHitSensors(this);
+        mRider = nullptr;
         setNerve(&NrvSurfRay::SurfRayNrvWait::sInstance);
     }
 }
