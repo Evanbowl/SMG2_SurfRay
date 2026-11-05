@@ -60,8 +60,9 @@ public:
 
     // New Functions
     void updateBoost();
-    bool isUnderwater();
+    bool isUnderwater(f32 dist = 50.0f);
     bool tryDismount();
+    bool tryWarpToRespawn(f32 dist = 3000.0f, bool needClipped = true);
     void exePlayerExit();
 
     void updateDive();
@@ -108,13 +109,14 @@ public:
     /* 0x1C0 */ ProjmapEffectMtxSetter* mProjmapFxMtxSetter;
 
     // New Members
-    /* 0x1C4 */ SurfRayConst* mConst;
-    /* 0x1C8 */ f32 mDiveSpeed;
+    TVec3f mWaterPosition;
+    SurfRayConst* mConst;
+    f32 mDiveSpeed;
     f32 mSpeedMult; // For dash rings
     f32 mSpeedMultTarget; // For dash rings
     s32 mSpeedMultAccelTime; // For dash rings
     s32 mSpeedMultTime; // For dash rings
     u32 mDamageDismount; // ALWAYS SET BEFORE USING!!
     s32 mGotoNearestPosWhenClipped; // Travel system
-    /* 0x1CC */ bool mIsDive;
+    bool mIsDive;
 };

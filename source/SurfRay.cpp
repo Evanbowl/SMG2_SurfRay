@@ -200,7 +200,7 @@ void SurfRay::init(const JMapInfoIter& rIter) {
 
     mConst = new SurfRayConst();
     s32 idx = -1;
-    // MR::getJMapInfoArg0NoInit(rIter, &idx);
+    MR::getJMapInfoArg0NoInit(rIter, &idx);
 
     if (idx > -1) {
         mConst->initFromTable(idx);
@@ -209,7 +209,10 @@ void SurfRay::init(const JMapInfoIter& rIter) {
         mConst->initDefault();
     }
 
-    mConst->mIsDiveEnabled = true;
+    mConst->mIsDiveEnabled = false;
+    MR::getJMapInfoArg6NoInit(rIter, &mConst->mIsDiveEnabled);
+
+    // TODO: Preferably have a way to hook this up to an in-game UI instead of hardcoding it
     //mConst->mIsStickControl = true;
 
     mActorJointCtrl = new ActorJointCtrl(this);
@@ -376,6 +379,12 @@ bool SurfRay::receiveOtherMsg(u32 msg, HitSensor* pSender, HitSensor* pReceiver)
 
     if (MR::isMsgRushCancel(msg)) {
         mRider = nullptr;
+        mSurfSpeed = 0.0f;
+        if (tryWarpToRespawn(0.0f, false)) {
+            mVelocity.zero();
+            mOrthoSpeed = 0;
+            mOrthoVelocity.zero();
+        }
         setNerve(&NrvSurfRay::SurfRayNrvWait::sInstance);
         return true;
     }
@@ -480,76 +489,7 @@ void SurfRay::exeWait() {
 
     mOrthoVelocity.zero();
 
-    if (mGotoNearestPosWhenClipped <= 0)
-        return;
-
-    if (MR::calcDistanceToPlayer(mTranslation) < 3000.0f)
-        return;
-
-    f32 bodyradius = MR::getSensorRadius(this, "Body");
-    if (!MR::isJudgedToClipFrustum(mTranslation, bodyradius))
-        return;
-
-    //OSReport("Player too far. Attempting Teleport...\n");
-
-    // find nearest warp point
-    s32 BestIDX = -1;
-    f32 BestDist = 1000000.0f; // should be large enough... I hope...
-    for (s32 i = 0; i < mGotoNearestPosWhenClipped; i++)
-    {
-        char buf[0x20];
-        snprintf(buf, 0x20, WARP_POS_FORMAT, i);
-        TVec3f translation;
-        TVec3f rotation;
-        if (!MR::tryFindLinkNamePos(this, buf, &translation, &rotation))
-            continue; // pos not found
-
-        f32 distancetopoint = MR::calcDistanceToPlayer(translation);
-
-        if (distancetopoint < 3000.0f) // if too close to player, we have to check for clipping
-            if (!MR::isJudgedToClipFrustum(translation, bodyradius))
-                continue; // pos not clipped
-
-        //OSReport("Distance to %s: %ff\n", buf, distancetopoint);
-
-        if (BestDist < distancetopoint)
-            continue;
-
-        // Set best
-        BestIDX = i;
-        BestDist = distancetopoint;
-    }
-
-    //OSReport("Best ID = %d\n", BestIDX);
-    if (BestIDX < 0)
-        return;
-
-    char destposname[0x20];
-    snprintf(destposname, 0x20, WARP_POS_FORMAT, BestIDX);
-    //OSReport("Trying to teleport to %s\n", destposname);
-    if (!MR::tryFindLinkNamePos(this, destposname, &mTranslation, &mRotation))
-    {
-        //OSReport("Failed to find %s\n", destposname);
-        return;
-    }
-
-    //OSReport("Teleported to %s\n", destposname);
-    TRot3f rotMtx;
-    rotMtx.identity();
-    MR::makeMtxRotate(rotMtx, mRotation);
-
-    rotMtx.getXDir(mSide);
-    rotMtx.getYDir(mUp);
-    rotMtx.getZDir(mFront);
-
-    mBaseUp.set(mUp);
-    mBaseSide.set(mSide);
-
-    mRotation.zero();
-    mVelocity.zero();
-    mOrthoVelocity.zero();
-
-    MR::makeMtxUpFrontPos(&mEffectHostMtx, -mGravity, mFront, mTranslation);
+    tryWarpToRespawn();
 }
 
 void SurfRay::exeRideAccel() {
@@ -955,6 +895,7 @@ void SurfRay::updateToWater() {
         }
 
         MR::getWaterAreaInfo(&mWaterInfo, mTranslation, mGravity, false);
+        mWaterPosition.set(mWaterInfo.mSurfacePos);
         mWaterNormal.set(mWaterInfo.mSurfaceNormal);
         f32 innerProd = mGravity.dot(mVelocity);
 
@@ -1324,10 +1265,10 @@ void SurfRay::updateBoost() {
     //OSReport("Boost: %ff / %ff   Accel/Time: %d / %d\n", mSpeedMult, mSpeedMultTarget, mSpeedMultAccelTime, mSpeedMultTime);
 }
 
-bool SurfRay::isUnderwater() {
+bool SurfRay::isUnderwater(f32 dist) {
     bool isUnderWater = false;
-    if (mWaterInfo.isInWater()) {
-        isUnderWater = PSVECDistance(mWaterInfo.mSurfacePos.toVecPtr(), mTranslation) > 120.0f;
+    if (tryInWater()) {
+        isUnderWater = PSVECDistance(mWaterPosition, mTranslation) > dist;
     }
     return isUnderWater;
 }
@@ -1343,7 +1284,7 @@ bool SurfRay::tryDismount() {
     if (isUnderwater())
         return false; // Do not dismount underwater
 
-    if (PSVECMag(mVelocity.toVecPtr()) > 10.0f)
+    if (PSVECMag(mVelocity.toVecPtr()) > 12.0f)
         return false; // Do not dismount at high speeds
 
     if (!MR::testSubPadButtonZ(mPadChannel))
@@ -1355,6 +1296,81 @@ bool SurfRay::tryDismount() {
 ForceDismount:
     mDamageDismount = 0;
     setNerve(&NrvSurfRay::SurfRayNrvPlayerExit::sInstance);
+    return true;
+}
+
+bool SurfRay::tryWarpToRespawn(f32 dist, bool needClipped) {
+    if (mGotoNearestPosWhenClipped <= 0)
+        return false;
+
+    if (MR::calcDistanceToPlayer(mTranslation) < dist)
+        return false;
+
+    f32 bodyradius = MR::getSensorRadius(this, "Body");
+    if (needClipped && !MR::isJudgedToClipFrustum(mTranslation, bodyradius))
+        return false;
+
+    //OSReport("Player too far. Attempting Teleport...\n");
+
+
+    // find nearest warp point
+    s32 BestIDX = -1;
+    f32 BestDist = 1000000.0f; // should be large enough... I hope...
+    for (s32 i = 0; i < mGotoNearestPosWhenClipped; i++)
+    {
+        char buf[0x20];
+        snprintf(buf, 0x20, WARP_POS_FORMAT, i);
+        TVec3f translation;
+        TVec3f rotation;
+        if (!MR::tryFindLinkNamePos(this, buf, &translation, &rotation))
+            continue; // pos not found
+
+        f32 distancetopoint = MR::calcDistanceToPlayer(translation);
+
+        if (distancetopoint < dist) // if too close to player, we have to check for clipping
+            if (needClipped && !MR::isJudgedToClipFrustum(translation, bodyradius))
+                continue; // pos not clipped
+
+        //OSReport("Distance to %s: %ff\n", buf, distancetopoint);
+
+        if (BestDist < distancetopoint)
+            continue;
+
+        // Set best
+        BestIDX = i;
+        BestDist = distancetopoint;
+    }
+
+    //OSReport("Best ID = %d\n", BestIDX);
+    if (BestIDX < 0)
+        return false;
+
+    char destposname[0x20];
+    snprintf(destposname, 0x20, WARP_POS_FORMAT, BestIDX);
+    //OSReport("Trying to teleport to %s\n", destposname);
+    if (!MR::tryFindLinkNamePos(this, destposname, &mTranslation, &mRotation))
+    {
+        //OSReport("Failed to find %s\n", destposname);
+        return false;
+    }
+
+    //OSReport("Teleported to %s\n", destposname);
+    TRot3f rotMtx;
+    rotMtx.identity();
+    MR::makeMtxRotate(rotMtx, mRotation);
+
+    rotMtx.getXDir(mSide);
+    rotMtx.getYDir(mUp);
+    rotMtx.getZDir(mFront);
+
+    mBaseUp.set(mUp);
+    mBaseSide.set(mSide);
+
+    mRotation.zero();
+    mVelocity.zero();
+    mOrthoVelocity.zero();
+
+    MR::makeMtxUpFrontPos(&mEffectHostMtx, -mGravity, mFront, mTranslation);
     return true;
 }
 
@@ -1401,11 +1417,12 @@ void SurfRay::exePlayerExit() {
 }
 
 void SurfRay::updateDive() {
-    // if (mBehavior & SURF_RAY_BHV_MOVE_DIVE == 0) {
-    //     return;
-    // }
+     if (!mConst->mIsDiveEnabled) {
+         mIsDive = false;
+         return;
+     }
 
-    if (PSVECDistance(mWaterInfo.mSurfacePos.toVecPtr(), mTranslation) < 120.0f)
+    if (PSVECDistance(mWaterPosition, mTranslation) < 120.0f)
         mIsDive = false;
 
     if (!mWaterInfo.isInWater()) {
